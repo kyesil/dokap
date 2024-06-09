@@ -1,0 +1,27 @@
+# dynamic conf
+http:
+  routers:
+    api:
+      rule: Host(`dokap.local`)
+      service: api@internal
+      middlewares:
+        - auth
+    route-ip:
+      rule: "Host(`sub.dokap.local`)"
+      service: route-ip-service
+      priority: 1000
+      entryPoints:
+        - web
+
+  services:
+    route-ip-service:
+      loadBalancer:
+        servers:
+          - url: "http://192.168.0.1"
+
+  middlewares:
+    auth:
+      basicAuth:
+        users:
+          - "test:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/"
+          - "test2:$apr1$d9hr9HBB$4HxwgUir3HP4EsggP/QNo0"

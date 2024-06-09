@@ -1,0 +1,24 @@
+services:
+  dokap_traefik:
+    build:
+      context: ./traefik/
+      dockerfile: traefik.Dockerfile
+    container_name: dokap_traefik
+    hostname: traefik
+    restart: unless-stopped
+    ports:
+      - 80:80/tcp
+      - 443:443/tcp
+      - 8080:8080/tcp
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./ssl:/ssl
+      - ./shared/:/shared
+      - ./traefik/config/:/etc/traefik/
+    networks:
+      - traefik_network
+
+networks:
+  traefik_network:
+    external: true
+  

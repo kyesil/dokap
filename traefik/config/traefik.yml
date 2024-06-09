@@ -1,0 +1,166 @@
+# "--entrypoints.web.address=:80",\
+#  "--entrypoints.web.http.redirections.entrypoint.to=websecure",\
+#  "--entrypoints.web.http.redirections.entrypoint.scheme=https",\
+#  "--entrypoints.websecure.address=:443",\
+#  "--entrypoints.websecure.http3",\
+#  "--log.level=DEBUG",\
+#  "--providers.docker=true",\
+#  "--providers.docker.network=treafik_network",\
+#  "--api=true",\
+#  "--api.debug=true",\
+#  "--api.dashboard=true",\
+#  "--api.insecure=true",\
+#  "--providers.docker.exposedByDefault=false",\
+#  "--certificatesresolvers.le.acme.email=developer@solidelectron.com",\
+#  "--certificatesResolvers.le.acme.storage=/ssl/acme.json"\
+################################################################
+global:
+  checkNewVersion: true
+  sendAnonymousUsage: false
+
+entryPoints:
+  web:
+    address: :80
+  websecure:
+    address: :443
+log:
+  level: INFO
+providers:
+  docker: 
+    exposedbydefault: false
+    network: treafik_network
+  file:  
+    filename: /etc/traefik/routes.yml ## TODO: not updated in container
+
+api:
+  debug: true
+  insecure: true
+  dashboard: true
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: admin@solidelectron.com
+      storage: /ssl/acme.json
+    
+################################################################
+# Traefik logs configuration
+################################################################
+
+# Traefik logs
+# Enabled by default and log to stdout
+#
+# Optional
+#
+#log:
+  # Log level
+  #
+  # Optional
+  # Default: "ERROR"
+  #
+#  level: DEBUG
+
+  # Sets the filepath for the traefik log. If not specified, stdout will be used.
+  # Intermediate directories are created if necessary.
+  #
+  # Optional
+  # Default: os.Stdout
+  #
+#  filePath: log/traefik.log
+
+  # Format is either "json" or "common".
+  #
+  # Optional
+  # Default: "common"
+  #
+#  format: json
+
+################################################################
+# Access logs configuration
+################################################################
+
+# Enable access logs
+# By default it will write to stdout and produce logs in the textual
+# Common Log Format (CLF), extended with additional fields.
+#
+# Optional
+#
+#accessLog:
+  # Sets the file path for the access log. If not specified, stdout will be used.
+  # Intermediate directories are created if necessary.
+  #
+  # Optional
+  # Default: os.Stdout
+  #
+#  filePath: /path/to/log/log.txt
+
+  # Format is either "json" or "common".
+  #
+  # Optional
+  # Default: "common"
+  #
+#  format: json
+
+################################################################
+# API and dashboard configuration
+################################################################
+
+# Enable API and dashboard
+#
+# Optional
+#
+#api:
+  # Enable the API in insecure mode
+  #
+  # Optional
+  # Default: false
+  #
+#  insecure: true
+
+  # Enabled Dashboard
+  #
+  # Optional
+  # Default: true
+  #
+#  dashboard: false
+
+################################################################
+# Ping configuration
+################################################################
+
+# Enable ping
+#ping:
+  # Name of the related entry point
+  #
+  # Optional
+  # Default: "traefik"
+  #
+#  entryPoint: traefik
+
+################################################################
+# Docker configuration backend
+################################################################
+
+#providers:
+  # Enable Docker configuration backend
+  #docker: true
+    # Docker server endpoint. Can be a tcp or a unix socket endpoint.
+    #
+    # Required
+    # Default: "unix:///var/run/docker.sock"
+    #
+#    endpoint: tcp://10.10.10.10:2375
+
+    # Default host rule.
+    #
+    # Optional
+    # Default: "Host(`{{ normalize .Name }}`)"
+    #
+#    defaultRule: Host(`{{ normalize .Name }}.docker.localhost`)
+
+    # Expose containers by default in traefik
+    #
+    # Optional
+    # Default: true
+    #
+#    exposedByDefault: false
