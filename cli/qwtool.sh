@@ -74,11 +74,11 @@ remove() {
     if [ -d "$gitpath" ]; then
         cd "$gitpath"
         stop
-        cd  "$APP_PATH"
+        cd  "$APPS_PATH"
         rm -rf $gitpath
         echo "removed gitpath: $gitpath"
     fi
-    if id "$qw_app" >/dev/null 2>&1; then
+    if id "$app" >/dev/null 2>&1; then
         skill -KILL -u $app
         userdel -f $app
         echo "user exist removed : $app"
@@ -86,7 +86,7 @@ remove() {
 	
 	if [ -d "$apath" ]; then
 		confirm "remove app folder $apath"
-        cd  "$APP_PATH"
+        cd  "$APPS_PATH"
         rm -rf "$apath"
         echo "removed apath: $apath"
     fi
