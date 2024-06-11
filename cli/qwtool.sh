@@ -5,7 +5,7 @@ app="$1"
 action="$2"
 xparam="$3"
 yparam="$4"
-apath="$APP_PATH/$app"
+apath="$APPS_PATH/$app"
 sshpath="$apath/.ssh"
 gitpath="$apath/${app}git"
 
