@@ -1,5 +1,6 @@
 #!/bin/bash
-APPS_PATH="/app"
+APPS_PATH="/data/apps"
+CADDY_PREFIX="/etc/caddy/sites/w_"
 
 app="$1"
 action="$2"
@@ -13,6 +14,7 @@ gitpath="$apath/${app}git"
 
 create() {
     checkroot
+    
     confirm "create user/ git clone  for $app"
     mkdir -p $sshpath
     if id "$app" >/dev/null 2>&1; then
@@ -20,7 +22,7 @@ create() {
     else
         rpassw=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 12)
         useradd -p $(openssl passwd -1 $rpassw) -G docker -s /bin/bash  -d $apath $app
-        echo -e "\n Userpass : $app : $rpassw \n"
+        echo -e "\n $? Userpass : $app : $rpassw \n"
     fi
     chown -R $app $apath
     chmod 750 -R $apath
@@ -38,6 +40,32 @@ create() {
     
 }
 
+addsite(){
+    local proxyport=$xparam
+    local domain=$yparam
+    
+    local conffile="${CADDY_PREFIX}${app}_$domain"
+    if [[ -z "$proxyport" || -z "$domain"  ]]; then
+        echo "please provide proxport and domain ";
+        exit 1
+    fi
+    if [ -f "$conffile" ]; then
+        echo "file exist skip replacing";
+    fi
+    
+    echo "
+$domain {
+ import _globals
+ reverse_proxy  127.0.0.1:$proxyport
+}
+    " >$conffile
+    
+    service caddy reload
+    caddy validate --config /etc/caddy/Caddyfile
+    sleep 3
+    service caddy status
+}
+
 resetpass(){
     checkroot
     confirm "reset user pass $app"
@@ -45,7 +73,7 @@ resetpass(){
         rpassw=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 12)
         skill -KILL -u $app
         usermod -p $(openssl passwd -1 $rpassw) $app
-        echo -e "\n Userpass : $app : $rpassw \n"
+        echo -e "\n $? Userpass : $app : $rpassw \n"
     else
         echo "user not exist : $app"
     fi
@@ -76,19 +104,24 @@ remove() {
         stop
         cd  "$APPS_PATH"
         rm -rf $gitpath
-        echo "removed gitpath: $gitpath"
+        echo "removed gitpath $?: $gitpath"
     fi
     if id "$app" >/dev/null 2>&1; then
         skill -KILL -u $app
         userdel -f $app
-        echo "user exist removed : $app"
+        echo "user exist removed $? : $app"
     fi
-	
-	if [ -d "$apath" ]; then
-		confirm "remove app folder $apath"
+    
+    if [ -d "$apath" ]; then
+        confirm "remove app folder $apath"
         cd  "$APPS_PATH"
         rm -rf "$apath"
-        echo "removed apath: $apath"
+        echo "removed apath $? : $apath"
+    fi
+
+    if ls ${CADDY_PREFIX}${app}_* 1> /dev/null 2>&1; then
+        rm -rf "${CADDY_PREFIX}${app}_*"
+        echo "remove caddyfile $?"
     fi
 }
 
@@ -108,7 +141,8 @@ update() {
         cd "$gitpath"
         git config --global --add safe.directory "$gitpath"
         git reset --hard
-        git pull
+        git clean -d -f .
+        git pull --force
     else
         echo "git path not found : $gitpath"
     fi
@@ -149,10 +183,34 @@ status(){
     if [ -d "$gitpath" ]; then
         cd "$gitpath"
         docker compose ps --all
-		docker compose stats --no-stream --all
+        docker compose stats --no-stream --all
     else
         echo "gith pat not found : $gitpath"
     fi
+}
+
+parse_params() {
+    params_req=($1)
+    for param in "$@"; do
+        if [[ "${param:0:2}" == "--" ]]; then
+            IFS='=' # spit =
+            local array=($param)
+            unset IFS;
+            local key=${array[0]//'-'/''} # replace -
+            local value=${array[1]}
+            eval "qw_$key=$value"
+        fi
+    done
+    for rp in "${params_req[@]}"; do
+        eval "local v=\$$params_prefix$rp"
+        echo "$rp => $v"
+        if [[ -z "$v" ]]; then
+            echo "Error: required param --$rp"
+            help
+            exit 1
+            break
+        fi
+    done
 }
 
 confirm() {
@@ -179,6 +237,7 @@ checkroot() {
     fi
 }
 
+
 help() {
     echo "
 Usage ./qwtool.sh (app) (action) [param1....]\n
@@ -199,6 +258,10 @@ Usage ./qwtool.sh (app) (action) [param1....]\n
 if [[ -z "$2" || -z "$1" ]]; then
     help
 else
-
+    if [[ "${1}" == "ps" ]]; then
+        docker ps
+        caddy validate --config /etc/caddy/Caddyfile
+        service caddy status
+    fi
     $2
 fi

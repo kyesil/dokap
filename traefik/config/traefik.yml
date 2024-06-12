@@ -31,6 +31,7 @@ providers:
     network: treafik_network
   file:  
     filename: /etc/traefik/routes.yml ## TODO: not updated in container
+    watch: true
 
 api:
   debug: true
