@@ -59,9 +59,10 @@ nano /etc/caddy/sites/_globals
 	Strict-Transport-Security "max-age=31536000; includeSubdomains"
   }
 
-  handle /health {
-   respond "okkk"
+ @blocked {
+    path *.txt *.md *.sqlite *.sqlite3 *.db *.ini *.git/* *.DS_Store
  }
+respond @blocked 200 
  
  log {
   level INFO

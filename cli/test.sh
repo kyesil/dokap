@@ -20,16 +20,22 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 
-echo "$APP"
-echo "$DOMAIN"
-echo "$PROXYPORT"
-echo "$REPO"
+# echo "$APP"
+# echo "$DOMAIN"
+# echo "$PROXYPORT"
+# echo "$REPO"
 
-value=""
-param="--ssdsds"
 
-if [[ -z "$value" && "${param:0:2}" != "--" ]]; then
-    echo " yes"
-else
-    echo "no"
+
+string='*.Mystring'
+if [[ $string == "*"* ]]; then
+  echo "It's there!  ${string:2}"
 fi
+
+# value=""
+# param="--ssdsds"
+# if [[ -z "$value" && "${param:0:2}" != "--" ]]; then
+#     echo " yes"
+# else
+#     echo "no"
+# fi

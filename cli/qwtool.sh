@@ -1,5 +1,5 @@
 #!/bin/bash
-APPS_PATH="/data/apps"
+APPS_PATH="/app"
 CADDY_PREFIX="/etc/caddy/sites/w_"
 
 app="$1"
@@ -10,11 +10,8 @@ apath="$APPS_PATH/$app"
 sshpath="$apath/.ssh"
 gitpath="$apath/${app}git"
 
-
-
 create() {
     checkroot
-    
     confirm "create user/ git clone  for $app"
     mkdir -p $sshpath
     if id "$app" >/dev/null 2>&1; then
@@ -43,12 +40,19 @@ create() {
 addsite(){
     local proxyport=$xparam
     local domain=$yparam
-    
-    local conffile="${CADDY_PREFIX}${app}_$domain"
     if [[ -z "$proxyport" || -z "$domain"  ]]; then
         echo "please provide proxport and domain ";
         exit 1
     fi
+    local wildcard=""
+    if [[ $domain == "*"* ]]; then # starts with star
+        echo "wildcard found $domain"
+        wildcard="import _wildcard"
+        domain="$domain, ${domain:2}"
+    fi
+    
+    local conffile="${CADDY_PREFIX}${app}"
+    
     if [ -f "$conffile" ]; then
         echo "file exist skip replacing";
     fi
@@ -57,6 +61,7 @@ addsite(){
 $domain {
  import _globals
  reverse_proxy  127.0.0.1:$proxyport
+ $wildcard
 }
     " >$conffile
     
@@ -112,16 +117,10 @@ remove() {
         echo "user exist removed $? : $app"
     fi
     
-    if [ -d "$apath" ]; then
-        confirm "remove app folder $apath"
-        cd  "$APPS_PATH"
-        rm -rf "$apath"
-        echo "removed apath $? : $apath"
-    fi
-
     if ls ${CADDY_PREFIX}${app}_* 1> /dev/null 2>&1; then
-        rm -rf "${CADDY_PREFIX}${app}_*"
+        rm -rf ${CADDY_PREFIX}${app}
         echo "remove caddyfile $?"
+        service caddy reload
     fi
 }
 
@@ -242,13 +241,14 @@ help() {
     echo "
 Usage ./qwtool.sh (app) (action) [param1....]\n
    Commands:
-    (app) create [sitename proxyport] #only with sudo
-    (app) clone  (giturl)
+    (app) create (giturl)
+    (app) addsite (proxpass) (domain)
     (app) remove #only with sudo
     (app) update  #down pull up
     (app) keyrgen  #regenrate sshkey
     (app) resetpass  #regenrate userpass
-    (app) logs [type] #docker compose log -f
+    (app) logs [-f] #docker compose log -f
+    (app) status
     (app) start  #docker compose up
     (app) stop #docker compose down
     "
