@@ -1,0 +1,5 @@
+*.solidelectron.com, solidelectron.com {
+ import _globals
+ reverse_proxy  127.0.0.1:8081
+ import _wildcard
+}

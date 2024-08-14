@@ -1,0 +1,28 @@
+sectorplatform.com:80 {
+ import _globals
+ encode gzip
+ root * /app/datahouse/datahousegit/frontend/src/assets/homehtml  #must chmod 755
+
+ handle /c/* {
+  reverse_proxy  127.0.0.1:8080
+ }
+ file_server {
+        index index.html index.htm
+ }
+}
+
+ *.sectorplatform.com:80 {
+  import _globals
+  @backend {
+    path_regexp ^/(svc|Svc|api|Api|uploads|health)
+  }
+
+  handle @backend {
+   reverse_proxy  127.0.0.1:8080
+  }
+
+  handle /* {
+   reverse_proxy  127.0.0.1:4200
+ }
+
+}

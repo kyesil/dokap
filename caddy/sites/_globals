@@ -1,0 +1,18 @@
+(_globals) {
+  header {
+        Strict-Transport-Security "max-age=31536000; includeSubdomains"
+  }
+  handle /health {
+   respond "okkk"
+ }
+ log {
+  level INFO
+  output stdout
+ }
+}
+
+(_wildcard) {
+ tls {
+        dns cloudflare lLMIHeVMmMyzfhlH4xzbVRFK1_PUF0iwU3n6FPpm
+ }
+}

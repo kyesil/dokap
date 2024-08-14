@@ -1,0 +1,24 @@
+aqua.guide {
+
+import _globals
+
+handle_path /ui* {
+     root * /home/kml/web
+     #root * /app/aquaguide/aquaguidegit/frontend/build/web
+     encode zstd gzip
+     try_files {path} /index.html
+     #rewrite /* /index.html
+      file_server {
+        index index.html index.htm
+      }
+   }
+
+ @notapi {
+   not path /api/*
+ }
+ handle {
+  rewrite @notapi /api{uri}
+  reverse_proxy  127.0.0.1:8000
+ }
+
+}

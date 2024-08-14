@@ -9,6 +9,9 @@ yparam="$4"
 apath="$APPS_PATH/$app"
 sshpath="$apath/.ssh"
 gitpath="$apath/${app}git"
+compose_p=""
+test -f $gitpath/compose-prod.yml && compose_p="-f compose-prod.yml"
+echo $compose_p
 
 create() {
     checkroot
@@ -22,7 +25,7 @@ create() {
         echo -e "\n $? Userpass : $app : $rpassw \n"
     fi
     chown -R $app $apath
-    chmod 750 -R $apath
+    chmod 755 -R $apath
     echo "User added  $? "
     
     if [ -d "$gitpath" ]; then
@@ -31,8 +34,9 @@ create() {
         git clone --depth 1 $xparam $gitpath
         #ssh-agent bash -c "ssh-add $sshpath/id_rsa; git clone --depth 1 $2 $gitpath"
         chown -R $app $gitpath
-        chmod 750 -R $gitpath
+        chmod 755 -R $gitpath
         git config --global --add safe.directory $gitpath
+        git config --global core.autocrlf false
     fi
     
 }
@@ -44,6 +48,7 @@ addsite(){
         echo "please provide proxport and domain ";
         exit 1
     fi
+    # local domainfn="${domain//'*'/'+'}" #filename * replace +
     local wildcard=""
     if [[ $domain == "*"* ]]; then # starts with star
         echo "wildcard found $domain"
@@ -85,7 +90,7 @@ resetpass(){
     
 }
 
-sshkeygen(){
+createkey(){
     confirm "remove all and regenerate sshkey $app"
     cd $sshpath
     rm ./*
@@ -95,6 +100,12 @@ sshkeygen(){
     chmod 700 ./
     chmod 600 ./authorized_keys
     chown -R $app $apath
+    echo -e "\n------------rsa_pub----------\n"
+    cat ./id_rsa.pub
+    echo -e "\n------------rsa_pub----------\n"
+}
+showkey(){
+    cd $sshpath
     echo -e "\n------------rsa_pub----------\n"
     cat ./id_rsa.pub
     echo -e "\n------------rsa_pub----------\n"
@@ -117,7 +128,7 @@ remove() {
         echo "user exist removed $? : $app"
     fi
     
-    if ls ${CADDY_PREFIX}${app}_* 1> /dev/null 2>&1; then
+    if ls ${CADDY_PREFIX}${app} 1> /dev/null 2>&1; then
         rm -rf ${CADDY_PREFIX}${app}
         echo "remove caddyfile $?"
         service caddy reload
@@ -131,6 +142,7 @@ clone() {
         git clone --depth 1 $xparam $gitpath
         chown -R $app $gitpath
         git config --global --add safe.directory "$gitpath"
+        git config --global core.autocrlf false
     fi
 }
 
@@ -150,9 +162,9 @@ update() {
 start(){
     if [ -d "$gitpath" ]; then
         cd "$gitpath"
-        docker compose up -d
-        docker update --restart unless-stopped $(docker compose ps -q)
-        docker compose ps --all
+        docker compose $compose_p up -d
+        #docker update --restart unless-stopped $(docker compose ps -q)
+        docker compose $compose_p ps --all
     else
         echo "git path not found : $gitpath"
     fi
@@ -171,8 +183,8 @@ stop(){
 log(){
     if [ -d "$gitpath" ]; then
         cd "$gitpath"
-        docker compose ps --all
-        docker compose logs $xparam
+        docker compose $compose_p ps --all
+        docker compose $compose_p logs $xparam
     else
         echo "gith pat not found : $gitpath"
     fi
@@ -181,8 +193,8 @@ log(){
 status(){
     if [ -d "$gitpath" ]; then
         cd "$gitpath"
-        docker compose ps --all
-        docker compose stats --no-stream --all
+        docker compose $compose_p ps --all
+        docker compose $compose_p stats --no-stream --all
     else
         echo "gith pat not found : $gitpath"
     fi
@@ -241,14 +253,15 @@ help() {
     echo "
 Usage ./qwtool.sh (app) (action) [param1....]\n
    Commands:
-    (app) create (giturl)
+    (app) create (giturl)#only with sudo
     (app) addsite (proxpass) (domain)
     (app) remove #only with sudo
     (app) update  #down pull up
-    (app) keyrgen  #regenrate sshkey
+    (app) createkey  #regenrate sshkey
+    (app) showkey  #regenrate sshkey
     (app) resetpass  #regenrate userpass
     (app) logs [-f] #docker compose log -f
-    (app) status
+    (app) status  (app) start  #docker compose up
     (app) start  #docker compose up
     (app) stop #docker compose down
     "
