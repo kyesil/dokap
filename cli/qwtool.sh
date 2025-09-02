@@ -16,27 +16,36 @@ echo $compose_p
 create() {
     checkroot
     confirm "create user/ git clone  for $app"
-    mkdir -p $sshpath
+    
     if id "$app" >/dev/null 2>&1; then
         echo "User exist only fixing project"
+		showkey
     else
         rpassw=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 12)
         useradd -p $(openssl passwd -1 $rpassw) -G docker -s /bin/bash  -d $apath $app
         echo -e "\n $? Userpass : $app : $rpassw \n"
+		mkdir -p $apath
+		chown $app:$app -R $apath/
+		su - "$app" -c "mkdir -p $sshpath"
+		createkey
+		echo "Devam etmek için 'q' tuşuna bas..."
+		while true; do	
+			read -n1 -s key   
+			if [[ $key == "q" ]]; then
+				break
+			fi
+		done
     fi
-    chown -R $app $apath
-    chmod 755 -R $apath
     echo "User added  $? "
-    
     if [ -d "$gitpath" ]; then
         echo "clone folder exist. skip clone: $gitpath"
     else
-        git clone --depth 1 $xparam $gitpath
-        #ssh-agent bash -c "ssh-add $sshpath/id_rsa; git clone --depth 1 $2 $gitpath"
-        chown -R $app $gitpath
-        chmod 755 -R $gitpath
-        git config --global --add safe.directory $gitpath
+		su - "$app" -c "mkdir -p $gitpath"
+		git config --global --add safe.directory $gitpath
         git config --global core.autocrlf false
+		su - "$app" -c "git clone '$xparam' '$gitpath'"
+		chown $app:$app -R $gitpath/
+        #ssh-agent bash -c "ssh-add $sshpath/id_rsa; git clone --depth 1 $2 $gitpath"
     fi
     
 }
@@ -93,22 +102,28 @@ resetpass(){
 createkey(){
     confirm "remove all and regenerate sshkey $app"
     cd $sshpath
-    rm ./*
-        ssh-keygen -q -t rsa -b 2048 -C $app -N '' -f ./id_rsa <<<y >/dev/null 2>&1
-        cat ./id_rsa.pub >>./authorized_keys
-    
-    chmod 700 ./
-    chmod 600 ./authorized_keys
-    chown -R $app $apath
-    echo -e "\n------------rsa_pub----------\n"
-    cat ./id_rsa.pub
-    echo -e "\n------------rsa_pub----------\n"
+    rm -rf $sshpath/*
+	
+	su - $app -c "ssh-keygen -t ed25519 -C \"$app@dokap\" -f ~/.ssh/id_ed25519 -N '' >/dev/null 2>&1 "
+	#su - "$app" -c "ssh-add $sshpath/id_ed25519"
+    #ssh-keygen -q -t ed25519 -C $app -f ./id_ed25519 <<<y >/dev/null 2>&1
+    #cat ./id_ed25519.pub >>./authorized_keys
+	chmod 700 $sshpath
+	chown $app:$app -R $sshpath/
+    chmod 600 "$sshpath/id_ed25519"
+	chmod 644 "$sshpath/id_ed25519.pub"
+	ssh-keyscan -t rsa,ecdsa,ed25519 github.com >> $sshpath/known_hosts
+	chmod 644 $sshpath/known_hosts
+
+    echo -e "\n------------id_ed25519_pub----------\n"
+    cat ./id_ed25519.pub
+    echo -e "\n------------id_ed25519_pub----------\n"
 }
 showkey(){
     cd $sshpath
-    echo -e "\n------------rsa_pub----------\n"
-    cat ./id_rsa.pub
-    echo -e "\n------------rsa_pub----------\n"
+    echo -e "\n------------id_ed25519_pub----------\n"
+    cat ./id_ed25519.pub
+    echo -e "\n------------id_ed25519_pub----------\n"
 }
 
 remove() {
@@ -157,6 +172,11 @@ update() {
     else
         echo "git path not found : $gitpath"
     fi
+}
+upgrade() {
+	update
+	stop
+	start
 }
 
 start(){
@@ -256,7 +276,8 @@ Usage ./qwtool.sh (app) (action) [param1....]\n
     (app) create (giturl)#only with sudo
     (app) addsite (proxpass) (domain)
     (app) remove #only with sudo
-    (app) update  #down pull up
+    (app) update  #git pull 
+	(app) upgrade  #stop gitpull start
     (app) createkey  #regenrate sshkey
     (app) showkey  #regenrate sshkey
     (app) resetpass  #regenrate userpass
