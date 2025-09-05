@@ -8,6 +8,7 @@ app="$1"
 action="$2"
 xparam="$3"
 yparam="$4"
+zparam="$5"
 apath="$APPS_PATH/$app"
 sshpath="$apath/.ssh"
 gitpath="$apath/${app}git"
@@ -239,6 +240,40 @@ status(){
 	DC stats --no-stream --all
 }
 
+shell() {
+
+ local cname="$yparam"
+  if [ -z "$yparam" ]; then
+	# Container isimlerini JSON'dan çek (jq gerektirmez)
+	mapfile -t NAMES < <(DC ps --all --format json \
+		| grep -o '"Name":"[^"]*"' | cut -d'"' -f4)
+	
+	if [ "${#NAMES[@]}" -eq 0 ]; then
+		echo "⚠️  Bu projede container yok."
+		exit 0
+	fi
+	
+	echo "📦 Container listesi (proje: $(basename "$(pwd)"))"
+	select cname in "${NAMES[@]}"; do
+		if [ -n "${cname:-}" ]; then
+		break
+		else
+		echo "Geçersiz seçim."
+		fi
+	done
+	
+  fi
+  	local USER_CMD="$xparam"
+	if [ -z "$USER_CMD" ]; then
+		USER_CMD="bash" 
+	fi
+  echo "➡️  $cname içinde çalıştırılıyor: $USER_CMD"
+  docker exec -it "$cname" $USER_CMD
+ 
+}
+
+
+
 parse_params() {
     params_req=($1)
     for param in "$@"; do
@@ -310,7 +345,8 @@ Usage ./qwtool (app) (action) [param1....]\n
     (app) showkey  #regenrate sshkey
     (app) resetpass  #regenrate userpass
     (app) logs [-f] #docker compose log -f
-    (app) status  (app) start  #docker compose up
+    (app) status  start  #docker compose up
+	(app) shell [command] [container name] run cmd in container
     (app) start  #docker compose up
     (app) stop #docker compose down
     "
