@@ -1,4 +1,6 @@
 #!/bin/bash
+#  ln -s /app/qwtool.sh /usr/bin/qwtool
+
 APPS_PATH="/app"
 CADDY_PREFIX="/etc/caddy/sites/w_"
 
@@ -9,9 +11,7 @@ yparam="$4"
 apath="$APPS_PATH/$app"
 sshpath="$apath/.ssh"
 gitpath="$apath/${app}git"
-compose_p=""
-test -f $gitpath/compose-prod.yml && compose_p="-f compose-prod.yml"
-echo $compose_p
+
 
 create() {
     checkroot
@@ -43,7 +43,7 @@ create() {
 		su - "$app" -c "mkdir -p $gitpath"
 		git config --global --add safe.directory $gitpath
         git config --global core.autocrlf false
-		su - "$app" -c "git clone '$xparam' '$gitpath'"
+		su - "$app" -c "git clone --depth 1 '$xparam' '$gitpath'"
 		chown $app:$app -R $gitpath/
         #ssh-agent bash -c "ssh-add $sshpath/id_rsa; git clone --depth 1 $2 $gitpath"
     fi
@@ -115,15 +115,38 @@ createkey(){
 	ssh-keyscan -t rsa,ecdsa,ed25519 github.com >> $sshpath/known_hosts
 	chmod 644 $sshpath/known_hosts
 
-    echo -e "\n------------id_ed25519_pub----------\n"
+    echo -e "\n------------rsa_ed25519----------\n"
     cat ./id_ed25519.pub
-    echo -e "\n------------id_ed25519_pub----------\n"
+    echo -e "\n------------rsa_ed25519----------\n"
 }
 showkey(){
     cd $sshpath
-    echo -e "\n------------id_ed25519_pub----------\n"
+    echo -e "\n------------rsa_ed25519----------\n"
     cat ./id_ed25519.pub
-    echo -e "\n------------id_ed25519_pub----------\n"
+    echo -e "\n------------rsa_ed25519----------\n"
+}
+
+fixperm(){
+	checkroot
+	confirm " yapılsın mı ? 
+	chown $app:$app -R $sshpath/
+	chown $app:$app -R $gitpath/
+	chmod 777 -R $apath/_*
+	chmod 777 -R $gitpath/
+	chmod 700 $sshpath
+    chmod 600 $sshpath/id_ed25519
+	chmod 644 $sshpath/id_ed25519.pub
+	chmod 644 $sshpath/known_hosts
+	"
+
+	chown $app:$app -R $sshpath/
+	chown $app:$app -R $gitpath/
+	chmod 777 -R $apath/_*
+	chmod 777 -R $gitpath/
+	chmod 700 $sshpath
+    chmod 600 $sshpath/id_ed25519
+	chmod 644 $sshpath/id_ed25519.pub
+	chmod 644 $sshpath/known_hosts
 }
 
 remove() {
@@ -145,33 +168,21 @@ remove() {
     
     if ls ${CADDY_PREFIX}${app} 1> /dev/null 2>&1; then
         rm -rf ${CADDY_PREFIX}${app}
-        echo "remove caddyfile $?"
+        echo "removed caddyfile $?"
         service caddy reload
     fi
 }
 
-clone() {
-    if [ -d "$gitpath" ]; then
-        echo "clone folder exist skip: "$gitpath""
-    else
-        git clone --depth 1 $xparam $gitpath
-        chown -R $app $gitpath
-        git config --global --add safe.directory "$gitpath"
-        git config --global core.autocrlf false
-    fi
-}
 
 update() {
     confirm "git reset & pull $app"
-    if [ -d "$gitpath" ]; then
-        cd "$gitpath"
-        git config --global --add safe.directory "$gitpath"
-        git reset --hard
-        git clean -d -f .
-        git pull --force
-    else
-        echo "git path not found : $gitpath"
-    fi
+    checkpath $gitpath
+	cd "$gitpath"
+	git config --global --add safe.directory "$gitpath"
+	git reset --hard
+	git clean -d -f .
+	git pull --force
+	chown $app:$app -R $gitpath/   
 }
 upgrade() {
 	update
@@ -179,45 +190,53 @@ upgrade() {
 	start
 }
 
+DC() {
+	checkpath $gitpath
+	cd "$gitpath"
+	local cf
+	local compose_f
+	for cf in  "docker-compose.yml" "compose.yml" "compose-prod.yml"; do
+		if [ -f "$cf" ]; then
+			if [ "$1" = "up" ]; then
+				yq -i 'del(.services[].image)' "$cf"
+			fi
+			compose_f=$cf
+		fi
+	done
+	echo "compose file = $compose_f"
+	docker compose -f "$compose_f" -p "$app" "$@"
+}
+
 start(){
-    if [ -d "$gitpath" ]; then
-        cd "$gitpath"
-        docker compose $compose_p up -d
-        #docker update --restart unless-stopped $(docker compose ps -q)
-        docker compose $compose_p ps --all
-    else
-        echo "git path not found : $gitpath"
-    fi
+    checkpath $gitpath
+	cd "$gitpath"
+	#yq -i '.services |= with_entries(.value.user = "1000:1000")' compose*.yml
+	
+	DC up -d
+	#docker update --restart unless-stopped $(docker compose ps -q)
+	DC ps --all
+    
 }
 stop(){
-    if [ -d "$gitpath" ]; then
-        cd "$gitpath"
-        docker compose ps --all
-        docker compose down --rmi all --volumes --remove-orphans
-        docker compose ps --all
-    else
-        echo "gith path not found : $gitpath"
-    fi
+    checkpath $gitpath
+	cd "$gitpath"
+	DC ps --all
+	DC down --rmi all --volumes --remove-orphans
+	DC ps --all
 }
 
 log(){
-    if [ -d "$gitpath" ]; then
-        cd "$gitpath"
-        docker compose $compose_p ps --all
-        docker compose $compose_p logs $xparam
-    else
-        echo "gith pat not found : $gitpath"
-    fi
+    checkpath $gitpath
+	cd "$gitpath"
+	DC ps --all
+	DC logs $xparam
 }
 
 status(){
-    if [ -d "$gitpath" ]; then
-        cd "$gitpath"
-        docker compose $compose_p ps --all
-        docker compose $compose_p stats --no-stream --all
-    else
-        echo "gith pat not found : $gitpath"
-    fi
+	checkpath $gitpath
+	cd "$gitpath"
+	DC ps --all
+	DC stats --no-stream --all
 }
 
 parse_params() {
@@ -261,6 +280,14 @@ confirm() {
     done
 }
 
+checkpath() {
+    local path="$1"
+    if [ ! -e "$path" ]; then
+        echo "❌ Hata: '$path' bulunamadı."
+        exit 1
+    fi
+}
+
 checkroot() {
     if [ "$EUID" -ne 0 ]; then
         print "please run root"
@@ -271,13 +298,14 @@ checkroot() {
 
 help() {
     echo "
-Usage ./qwtool.sh (app) (action) [param1....]\n
+Usage ./qwtool (app) (action) [param1....]\n
    Commands:
     (app) create (giturl)#only with sudo
     (app) addsite (proxpass) (domain)
     (app) remove #only with sudo
     (app) update  #git pull 
 	(app) upgrade  #stop gitpull start
+	(app) fixperm #only with sudo
     (app) createkey  #regenrate sshkey
     (app) showkey  #regenrate sshkey
     (app) resetpass  #regenrate userpass
