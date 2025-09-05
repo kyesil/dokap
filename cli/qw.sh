@@ -4,7 +4,7 @@
 
 help() {
     echo "
-Usage ./qw (action) [param1....]\n
+Usage qw (action) [param1....]\n
    Commands:
     remove #only with sudo
     update  #git pull 
@@ -14,7 +14,7 @@ Usage ./qw (action) [param1....]\n
     resetpass  #regenrate userpass
     logs [-f] #docker compose log -f
     status  (app) start  #docker compose up
-    shell [command] [container name] run cmd in container
+    shell [command] [container name] run cmd in container 
     start  #docker compose up
     stop #docker compose down
     "

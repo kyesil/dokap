@@ -267,7 +267,6 @@ shell() {
 	if [ -z "$USER_CMD" ]; then
 		USER_CMD="bash" 
 	fi
-  echo "➡️  $cname içinde çalıştırılıyor: $USER_CMD"
   docker exec -it "$cname" $USER_CMD
  
 }
@@ -336,7 +335,7 @@ help() {
 Usage ./qwtool (app) (action) [param1....]\n
    Commands:
     (app) create (giturl)#only with sudo
-    (app) addsite (proxpass) (domain)
+    (app) addsite (proxy port) (domain)
     (app) remove #only with sudo
     (app) update  #git pull 
 	(app) upgrade  #stop gitpull start
@@ -346,7 +345,7 @@ Usage ./qwtool (app) (action) [param1....]\n
     (app) resetpass  #regenrate userpass
     (app) logs [-f] #docker compose log -f
     (app) status  start  #docker compose up
-	(app) shell [command] [container name] run cmd in container
+	(app) shell  attach container shell
     (app) start  #docker compose up
     (app) stop #docker compose down
     "
